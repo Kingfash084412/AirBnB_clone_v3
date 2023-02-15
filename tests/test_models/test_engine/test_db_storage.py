@@ -6,7 +6,6 @@ Contains the TestDBStorageDocs and TestDBStorage classes
 from datetime import datetime
 import inspect
 import models
-from models import storage
 from models.engine import db_storage
 from models.amenity import Amenity
 from models.base_model import BaseModel
@@ -79,29 +78,44 @@ class TestFileStorage(unittest.TestCase):
     @unittest.skipIf(models.storage_t != 'db', "not testing db storage")
     def test_all_no_class(self):
         """Test that all returns all rows when no class is passed"""
-        pass
 
     @unittest.skipIf(models.storage_t != 'db', "not testing db storage")
     def test_new(self):
         """test that new adds an object to the database"""
-        pass
 
     @unittest.skipIf(models.storage_t != 'db', "not testing db storage")
     def test_save(self):
         """Test that save properly saves objects to file.json"""
-        pass
 
-    @unittest.skipIf(models.storage_t == 'db', "not testing file storage")
-    def test_get(self):
-        """Test that get objects to file.json"""
-        test_get = State("Louisiana")
-        test_get.save()
-        test = storage.get(State, test_get.id)
-        self.assertEqual(type(test), State)
-
-    @unittest.skipIf(models.storage_t == 'db', "not testing file storage")
+    @unittest.skipIf(models.storage_t != 'db', "not testing db storage")
     def test_count(self):
-        """ Test method to count the number of objects in storage """
-        test_count = State("Louisiana")
-        count = storage.count(State)
-        self.assertEqual(count, storage.count(State))
+        """Test that count method returns an accurate count of objects"""
+        models.storage.reload()
+        state = State(name="Hell")
+        user = User(email="1@2.com", password="123")
+        models.storage.new(state)
+        models.storage.new(user)
+        models.storage.save()
+        self.assertEqual(models.storage.count(), 2)
+        models.storage.delete(user)
+        models.storage.delete(state)
+
+    @unittest.skipIf(models.storage_t != 'db', "not testing db storage")
+    def test_get(self):
+        """Test that get method returns object by valid id"""
+        models.storage.reload()
+        user = User(email="1@2.com", password="123")
+        models.storage.new(user)
+        models.storage.save()
+        user_id = user.id
+        wrong_id = '666'
+        self.assertTrue(models.storage.get(User, user_id) is user)
+        self.assertIsNone(models.storage.get(User, wrong_id))
+        models.storage.delete(user)
+        state = State(name='Heaven')
+        models.storage.new(state)
+        models.storage.save()
+        state_id = state.id
+        wrong_id = 'Toast'
+        self.assertTrue(models.storage.get(State, state_id) is state)
+        self.assertIsNone(models.storage.get(State, wrong_id))
