@@ -156,7 +156,7 @@ No known bugs at this time.
 ## Authors
 Alexa Orrico - [Github](https://github.com/alexaorrico) / [Twitter](https://twitter.com/alexa_orrico)  
 Jennifer Huang - [Github](https://github.com/jhuang10123) / [Twitter](https://twitter.com/earthtojhuang)
-Tobi Amoniyano - [Github](https://github.com/Oluwatoby8965) 
+Tobi Amoniyan - [Github](https://github.com/Oluwatoby8965) 
 Fashina Segun - [Github](https://github.com/Kingfash084412)
 
 Third part of Airbnb: Fashina Segun And Tobi Amoniyano
