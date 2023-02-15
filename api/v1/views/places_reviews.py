@@ -1,88 +1,131 @@
 #!/usr/bin/python3
-"""
-This file contains the Review module
-"""
-from api.v1.views import app_views
-from flask import jsonify, abort, request, make_response
-from models import storage
+"""Reviews object view"""
+from flask import Flask, jsonify, request, Response
+from flask import abort
 from models.place import Place
 from models.review import Review
 from models.user import User
-from flasgger.utils import swag_from
+from models import storage
+from api.v1.views import app_views
 
 
-@app_views.route('/places/<string:place_id>/reviews',
-                 methods=['GET'], strict_slashes=False)
-@swag_from('documentation/reviews/get.yml', methods=['GET'])
-def get_all_reviews(place_id):
-    """ get reviews from a spcific place """
-    place = storage.get(Place, place_id)
-    if place is None:
+@app_views.route("/places/<place_id>/reviews", strict_slashes=False,
+                 methods=['GET'])
+def reviews(place_id):
+    """Retrieve all reviews of place using place_id"""
+    review_list = []
+
+    if place_id is not None:
+        all_reviews = storage.all(Review)
+
+        single_place = storage.get(Place, place_id)
+
+        if single_place is None:
+            abort(404)
+
+        for k, v in all_reviews.items():
+            if getattr(v, 'place_id') == place_id:
+                review_list.append(v.to_dict())
+
+        return jsonify(review_list)
+
+    else:
         abort(404)
-    reviews = [obj.to_dict() for obj in place.reviews]
-    return jsonify(reviews)
 
 
-@app_views.route('/reviews/<string:review_id>', methods=['GET'],
-                 strict_slashes=False)
-@swag_from('documentation/reviews/get_id.yml', methods=['GET'])
-def get_review(review_id):
-    """ get review by id"""
-    review = storage.get(Review, review_id)
-    if review is None:
+@app_views.route("reviews/<review_id>", strict_slashes=False,
+                 methods=['GET'])
+def review(review_id):
+    """Retrieve review object"""
+    if review_id is not None:
+
+        single_review = storage.get(Review, review_id)
+
+        if single_review is None:
+            abort(404)
+
+        return jsonify(single_review.to_dict())
+
+    else:
         abort(404)
-    return jsonify(review.to_dict())
 
 
-@app_views.route('/reviews/<string:review_id>', methods=['DELETE'],
-                 strict_slashes=False)
-@swag_from('documentation/reviews/delete.yml', methods=['DELETE'])
-def del_review(review_id):
-    """ delete review by id"""
-    review = storage.get(Review, review_id)
-    if review is None:
+@app_views.route("reviews/<review_id>", strict_slashes=False,
+                 methods=['DELETE'])
+def review_delete(review_id):
+    """Deletes a review object """
+    if review_id is not None:
+        del_review = storage.get(Review, review_id)
+
+        if del_review is None:
+            abort(404)
+
+        del_review.delete()
+        storage.save()
+
+        return {}
+
+    else:
         abort(404)
-    review.delete()
+
+
+@app_views.route("places/<place_id>/reviews", strict_slashes=False,
+                 methods=['POST'])
+def review_add(place_id):
+    """Add a review object """
+    data = request.get_json()
+
+    if data is None:
+        err_return = {"error": "Not a JSON"}
+        return jsonify(err_return), 400
+
+    if "user_id" not in data:
+        err_return = {"error": "Missing user_id"}
+        return jsonify(err_return), 400
+
+    if "text" not in data:
+        err_return = {"error": "Missing text"}
+        return jsonify(err_return), 400
+
+    if place_id is not None:
+
+        single_place = storage.get(Place, place_id)
+
+        if single_place is None:
+            abort(404)
+
+        single_user = storage.get(User, data['user_id'])
+
+        if single_user is None:
+            abort(404)
+
+        new = Review(**data)
+
+        setattr(new, 'place_id', place_id)
+        storage.new(new)
+        storage.save()
+        return jsonify(new.to_dict()), 201
+
+    else:
+        abort(404)
+
+
+@app_views.route("/reviews/<review_id>", strict_slashes=False, methods=['PUT'])
+def review_update(review_id):
+    """Update review object """
+    data = request.get_json()
+
+    if data is None:
+        error_dict = {"error": "Not a JSON"}
+        return jsonify(error_dict), 400
+
+    single_review = storage.get(Review, review_id)
+
+    if single_review is None:
+        abort(404)
+
+    setattr(single_review, 'text', data['text'])
+    single_review.save()
     storage.save()
-    return jsonify({})
 
-
-@app_views.route('/places/<string:place_id>/reviews', methods=['POST'],
-                 strict_slashes=False)
-@swag_from('documentation/reviews/post.yml', methods=['POST'])
-def create_obj_review(place_id):
-    """ create new instance """
-    place = storage.get(Place, place_id)
-    if place is None:
-        abort(404)
-    if not request.get_json():
-        return make_response(jsonify({"error": "Not a JSON"}), 400)
-    if 'user_id' not in request.get_json():
-        return make_response(jsonify({"error": "Missing user_id"}), 400)
-    if 'text' not in request.get_json():
-        return make_response(jsonify({"error": "Missing text"}), 400)
-    kwargs = request.get_json()
-    kwargs['place_id'] = place_id
-    user = storage.get(User, kwargs['user_id'])
-    if user is None:
-        abort(404)
-    obj = Review(**kwargs)
-    obj.save()
-    return (jsonify(obj.to_dict()), 201)
-
-
-@app_views.route('/reviews/<string:review_id>', methods=['PUT'],
-                 strict_slashes=False)
-@swag_from('documentation/reviews/put.yml', methods=['PUT'])
-def post_review(review_id):
-    """ updates by id """
-    if not request.get_json():
-        return make_response(jsonify({"error": "Not a JSON"}), 400)
-    obj = storage.get(Review, review_id)
-    if obj is None:
-        abort(404)
-    for key, value in request.get_json().items():
-        if key not in ['id', 'user_id', 'place_id', 'created_at', 'updated']:
-            setattr(obj, key, value)
-    storage.save()
-    return jsonify(obj.to_dict())
+    return jsonify(single_review.to_dict())
